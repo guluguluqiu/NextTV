@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useActionState, useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { login } from "@/app/actions/auth";
 import {
   MaterialSymbolsErrorRounded,
@@ -12,18 +11,27 @@ import {
   MaterialSymbolsWarningRounded,
 } from "@/components/icons";
 
-const ERROR_MESSAGES = {
+const ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: "请先登录以访问",
   expired: "登录已过期，请重新登录",
 };
 
 function LoginForm() {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState(login, undefined);
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
 
   const proxyError = searchParams.get("error");
-  const proxyMessage = ERROR_MESSAGES[proxyError] || null;
+  const proxyMessage = proxyError ? ERROR_MESSAGES[proxyError] || null : null;
+
+  // 💡 关键新增：当 Action 成功返回 { success: true } 时，在前端触发路由跳转
+  useEffect(() => {
+    if (state?.success) {
+      router.push("/");
+      router.refresh(); // 刷新路由缓存，确保中间件能即时拿到 Session Cookie
+    }
+  }, [state, router]);
 
   return (
     <div className="w-full min-h-[80vh] flex flex-col items-center justify-center page-enter">
