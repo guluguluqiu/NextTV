@@ -6,43 +6,59 @@ const publicRoutes = ["/login"];
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
 
-  // Skip static assets and API routes
+  // 1. 过滤静态资源、API 接口和各类媒体文件
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
-    pathname.startsWith("/favicon.ico")
+    pathname.startsWith("/favicon.ico") ||
+    pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js)$/)
   ) {
+    return NextResponse.next();
+  }
+
+  // 2. 关键防护：如果是 POST 请求或 Server Action，跳过页面级的 Redirect 逻辑！
+  // Server Action 请求带有 next-action 请求头
+  const isServerAction = request.headers.has("next-action");
+  const isPostRequest = request.method !== "GET" && request.method !== "HEAD";
+
+  if (isServerAction || isPostRequest) {
     return NextResponse.next();
   }
 
   const sessionCookie = request.cookies.get("session")?.value;
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // If visiting login page while already authenticated, redirect to home
-  if (isPublicRoute && sessionCookie) {
-    const session = await decrypt(sessionCookie);
-    if (session) {
-      return NextResponse.redirect(new URL("/", request.url));
+  // 3. 加 try-catch 保护，防止解密失败或环境变量缺失导致 500 崩溃
+  let session = null;
+  if (sessionCookie) {
+    try {
+      session = await decrypt(sessionCookie);
+    } catch (err) {
+      console.error("[Proxy] Decrypt session failed:", err);
+      session = null;
     }
   }
 
-  // If visiting protected route without valid session, redirect to login
-  if (!isPublicRoute) {
-    if (!sessionCookie) {
-      const url = new URL("/login", request.url);
-      url.searchParams.set("error", "unauthenticated");
-      return NextResponse.redirect(url);
-    }
+  // 4. 仅对常规 GET 页面访问进行重定向拦截
+  // 已登录用户访问登录页 -> 重定向到首页
+  if (isPublicRoute && session) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
-    const session = await decrypt(sessionCookie);
-    if (!session) {
-      // Cookie exists but is invalid or expired
-      const response = NextResponse.redirect(
-        new URL("/login?error=expired", request.url)
-      );
+  // 未登录/Session失效 访问受保护路由 -> 重定向到登录页
+  if (!isPublicRoute && !session) {
+    const errorType = sessionCookie ? "expired" : "unauthenticated";
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("error", errorType);
+
+    const response = NextResponse.redirect(redirectUrl);
+    
+    // 如果 Cookie 无效，顺手擦除 Cookie
+    if (sessionCookie && !session) {
       response.cookies.delete("session");
-      return response;
     }
+    
+    return response;
   }
 
   return NextResponse.next();
