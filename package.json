@@ -20,13 +20,16 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.1",
     "autoprefixer": "^10.4.27",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.1.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.5.8",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.7.2"
   },
   "ignoreScripts": [
     "sharp",
