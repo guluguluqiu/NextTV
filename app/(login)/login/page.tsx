@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { login } from "@/app/actions/auth";
 import {
   MaterialSymbolsErrorRounded,
@@ -17,7 +17,6 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 function LoginForm() {
-  const router = useRouter();
   const [state, formAction, isPending] = useActionState(login, undefined);
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
@@ -25,13 +24,12 @@ function LoginForm() {
   const proxyError = searchParams.get("error");
   const proxyMessage = proxyError ? ERROR_MESSAGES[proxyError] || null : null;
 
-  // 💡 关键新增：当 Action 成功返回 { success: true } 时，在前端触发路由跳转
+  // 💡 登录成功后强制使用硬跳转发起完整 GET 请求，保障带上最新 Cookie 并避开 RSC 错误
   useEffect(() => {
     if (state?.success) {
-      router.push("/");
-      router.refresh(); // 刷新路由缓存，确保中间件能即时拿到 Session Cookie
+      window.location.href = "/";
     }
-  }, [state, router]);
+  }, [state]);
 
   return (
     <div className="w-full min-h-[80vh] flex flex-col items-center justify-center page-enter">
