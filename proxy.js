@@ -4,7 +4,7 @@ import { decrypt } from "@/lib/session";
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
 
-  // 1. 放行静态资源、API 与登录页本身
+  // 放行静态资源、API 接口和登录页
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -15,11 +15,9 @@ export async function proxy(request) {
     return NextResponse.next();
   }
 
-  // 2. 校验 Cookie 状态
   const sessionCookie = request.cookies.get("session")?.value;
   const session = sessionCookie ? await decrypt(sessionCookie) : null;
 
-  // 3. 未登录跳转到登录页
   if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
